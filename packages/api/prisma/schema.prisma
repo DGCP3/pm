@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserAccount {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String ///@zod.min(8).max(20).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/, 'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character')
+  username       String ///@zod.min(3).max(20).regex(/^[a-zA-Z0-9]+$/, 'Username must contain only letters and numbers')
+  authToken      String?
+  Project        Project[]
+  created        DateTime        @default(now()) /// @zod.optional()
+  updated        DateTime        @updatedAt /// @zod.optional()
+  Task_List      TaskList[]
+  Project_Member ProjectMember[]
+}
+
+model Project {
+  id             String          @id @default(uuid()) /// @zod.uuid()
+  title          String
+  description    String?
+  ownerId        String
+  closed         Boolean         @default(false) /// @zod.default(false)
+  owner          UserAccount     @relation(fields: [ownerId], references: [id])
+  favorite       Boolean         @default(false) /// @zod.default(false)
+  created        DateTime        @default(now()) /// @zod.optional()
+  updated        DateTime        @updatedAt /// @zod.optional()
+  list           List[]
+  Project_Member ProjectMember[]
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid()) /// @zod.uuid()
+  projectId String
+  userId    String
+  Project   Project     @relation(fields: [projectId], references: [id])
+  User      UserAccount @relation(fields: [userId], references: [id])
+}
+
+model List {
+  id        String  @id @default(uuid()) /// @zod.uuid()
+  title     String
+  projectId String
+  Project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Card      Card[]
+}
+
+model Card {
+  id          String        @id @default(uuid()) /// @zod.uuid()
+  title       String        @default("Untitled Card")
+  description String?
+  due_date    DateTime?
+  avatar      String?
+  list_id     String
+  List        List          @relation(fields: [list_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  priority    Priority?
+  status      Status?
+  Comment     CardComment[]
+  Task_List   TaskList[]
+  created     DateTime      @default(now()) /// @zod.optional()
+  updated     DateTime      @updatedAt /// @zod.optional()
+}
+
+model CardComment {
+  id      String   @id @default(uuid()) /// @zod.uuid()
+  comment String
+  cardId  String
+  card    Card     @relation(fields: [cardId], references: [id])
+  created DateTime @default(now())
+  updated DateTime @updatedAt
+}
+
+model TaskList {
+  id            String       @id @default(uuid()) /// @zod.uuid().optional()
+  title         String
+  cardId        String
+  card          Card         @relation(fields: [cardId], references: [id])
+  Task          Task[]
+  UserAccount   UserAccount? @relation(fields: [userAccountId], references: [id])
+  userAccountId String?
+  created       DateTime     @default(now())
+  updated       DateTime     @updatedAt
+}
+
+model Task {
+  id              String           @id @default(uuid()) /// @zod.uuid().optional()
+  description     String
+  done            Boolean          @default(false)
+  assigned_to     String?
+  task_listId     String
+  Task_List       TaskList         @relation(fields: [task_listId], references: [id])
+  created         DateTime         @default(now())
+  updated         DateTime         @updatedAt
+  Task_Assignment TaskAssignment[]
+}
+
+model TaskAssignment {
+  id            String   @id @default(uuid()) /// @zod.uuid().optional()
+  task_id_fk    String
+  assigned_to   String
+  created       DateTime @default(now())
+  updated       DateTime @updatedAt
+  Project_Tasks Task     @relation(fields: [task_id_fk], references: [id])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Status {
+  TODO
+  IN_PROGRESS
+  DONE
+  IN_REVIEW
+  APPROVED
+}
